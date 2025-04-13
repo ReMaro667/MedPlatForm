@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <module name="med-consultation" />
+        <module name="appointment-service" />
+        <module name="med-user" />
+        <module name="med-gateway" />
+        <module name="med-prescription" />
+        <module name="med-common" />
+        <module name="med-api" />
+      </profile>
+    </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="med-hospital" target="17" />
+    </bytecodeTargetLevel>
+  </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="appointment-service" options="-parameters" />
+      <module name="med-api" options="-parameters" />
+      <module name="med-common" options="-parameters" />
+      <module name="med-consultation" options="-parameters" />
+      <module name="med-gateway" options="-parameters" />
+      <module name="med-hospital" options="-parameters" />
+      <module name="med-prescription" options="-parameters" />
+      <module name="med-user" options="-parameters" />
+      <module name="medplatform" options="" />
+    </option>
+  </component>
+</project>

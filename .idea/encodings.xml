@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/appointment-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/med-api/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/med-common/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/med-consultation/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/med-gateway/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/med-hospital/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/med-prescription/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/med-user/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/main/resources" charset="UTF-8" />
+  </component>
+</project>

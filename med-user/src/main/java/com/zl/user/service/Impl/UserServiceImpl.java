@@ -1,0 +1,132 @@
+package com.zl.user.service.Impl;
+
+import cn.hutool.core.util.RandomUtil;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.zl.domain.Result;
+import com.zl.exception.BadRequestException;
+import com.zl.user.config.JwtProperties;
+import com.zl.user.domain.dto.LoginFormDTO;
+import com.zl.user.domain.dto.RegisterDTO;
+import com.zl.user.domain.po.User;
+import com.zl.user.domain.vo.UserLoginVO;
+import com.zl.user.mapper.UserMapper;
+import com.zl.user.service.IUserService;
+import com.zl.user.utils.JwtTool;
+import com.zl.utils.RedisConstants;
+import com.zl.utils.RegexUtils;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.util.Assert;
+
+import javax.annotation.Resource;
+
+import java.util.concurrent.TimeUnit;
+
+import static com.zl.user.utils.NicknameGenerator.generateRandomNickname;
+import static com.zl.utils.RedisConstants.LOGIN_CODE_TTL;
+
+/**
+ * <p>
+ * 用户表 服务实现类
+ * </p>
+ *
+ * @author 虎哥
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IUserService {
+    private final PasswordEncoder passwordEncoder;
+    private final JwtTool jwtTool;
+    private final JwtProperties jwtProperties;
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
+
+    @Override
+    public Result<?> sendCode(String phone) {
+        // TODO 校验手机号码是否合法
+        if (!RegexUtils.isPhoneInvalid(phone)) {
+            return Result.fail(400,"手机号码不合法");
+        }
+        // TODO 生成验证码
+        String code = RandomUtil.randomNumbers(6);
+        System.out.println("生成验证码成功：" + code);
+        // TODO 保存验证码到redis
+        stringRedisTemplate.opsForValue().set(RedisConstants.LOGIN_CODE_KEY + phone, code, LOGIN_CODE_TTL, TimeUnit.MINUTES);
+        // TODO 发送验证码
+        System.out.println("发送验证码成功：" + code);
+        return Result.success();
+    }
+
+
+    @Override
+    public UserLoginVO login(LoginFormDTO loginDTO) {
+        // 1.数据校验
+        String phone = loginDTO.getPhone();
+        String password = loginDTO.getPassword();
+        // 2.根据用户名或手机号查询
+        User user = lambdaQuery().eq(User::getPhone,phone ).one();
+        Assert.notNull(user, "用户不存在");
+
+        // 4.校验密码
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            throw new BadRequestException("用户名或密码错误");
+        }
+        // 5.生成TOKEN
+        String token = jwtTool.createToken(user.getUserId(), jwtProperties.getTokenTTL());
+        // 6.封装VO返回
+        UserLoginVO vo = new UserLoginVO();
+        vo.setUserId(user.getUserId());
+        vo.setPhone(user.getPhone());
+        vo.setUsername(user.getUsername());
+        vo.setToken(token);
+        return vo;
+    }
+
+    @Override
+    public void register(RegisterDTO registerDTO) {
+        // 1.数据校验
+        String phone = registerDTO.getPhone();
+        // 2.根据用户名或手机号查询
+        System.out.println("phone:" + phone);
+        User user = lambdaQuery().eq(User::getPhone, phone).one();
+//        Assert.isNull(user, "用户已存在");
+        // 3.加密密码
+        String encodedPassword = passwordEncoder.encode(registerDTO.getPassword());
+        System.out.println("encodedPassword:" + encodedPassword);
+        // 4. 构建用户实体
+        String nickname = generateRandomNickname();
+        User newUser = User.builder()
+                .realName(registerDTO.getName())
+                .username(nickname)
+                .password(encodedPassword)
+                .phone(registerDTO.getPhone())
+                .build();
+//         5. 保存用户
+        save(newUser);
+    }
+
+
+
+//    @Override
+//    public void deductMoney(String pw, Integer totalFee) {
+//        log.info("开始扣款");
+//        // 1.校验密码
+//        User user = getById(UserContext.getUser());
+//        if(user == null || !passwordEncoder.matches(pw, user.getPassword())){
+//            // 密码错误
+//            throw new BizIllegalException("用户密码错误");
+//        }
+//
+//        // 2.尝试扣款
+//        try {
+//            baseMapper.updateMoney(UserContext.getUser(), totalFee);
+//        } catch (Exception e) {
+//            throw new RuntimeException("扣款失败，可能是余额不足！", e);
+//        }
+//        log.info("扣款成功");
+//    }
+}
