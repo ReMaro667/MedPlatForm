@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: med-prescription
+  cloud:
+    nacos:
+      server-addr: 192.168.42.129
+      config:
+        file-extension: yaml
+        shared-configs:
+          - dataId: shared-seata.yaml

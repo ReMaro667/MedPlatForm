@@ -1,6 +1,5 @@
 package com.zl.appointment.service.Impl;
 
-import cn.hutool.core.lang.UUID;
 import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.zl.api.client.GetInfo;
@@ -53,6 +52,7 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         LocalDate date = LocalDate.parse(createAppointmentDTO.getDate());
         String cacheKey = getCacheKeyForSchedule(scheduleId,date);
         Schedule schedule = getScheduleByScheduleId(createAppointmentDTO.getDepartmentId(),scheduleId, date);
+
         System.out.println("schedule:"+schedule);
         if (schedule == null){
             return Result.fail(400,"错误的预约");
@@ -64,15 +64,18 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
             if (!lock)
                 return Result.fail(400,"预约失败");
 
-            //更新redis
+            //判断库存
             if(schedule.getMaxPatients()<=0)
                 return Result.fail(400,"预约已满");
+
             System.out.println("------schedule:"+schedule);
             int maxPatients = schedule.getMaxPatients();
+            //更新redis库存
             schedule.setMaxPatients(maxPatients-1);
             String scheduleJson = JSON.toJSONString(schedule);
             redisTemplate.opsForHash().put(cacheKey, scheduleId.toString(), scheduleJson);
             redisTemplate.expire(cacheKey, 10, TimeUnit.MINUTES);
+
             //更新数据库
             appointmentMapper.updateCount(scheduleId);
             appointmentMapper.createAppointment(createAppointmentDTO);
@@ -105,7 +108,6 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         System.out.println("-------------------" + symptom);
         return appointmentMapper.advice(symptom);
     }
-
 
     @Override
     public Result<?> queueNext(Long appointmentId,Long departmentId,Long doctorId,Long scheduleId) {

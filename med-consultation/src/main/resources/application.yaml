@@ -6,8 +6,6 @@ spring:
   cloud:
     nacos:
       server-addr: 192.168.42.129:8848
-  profiles:
-    active: dev
   datasource:
     url: jdbc:mysql://192.168.42.129:3306/IOMCP?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&serverTimezone=Asia/Shanghai
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -32,3 +30,6 @@ mybatis-plus:
     db-config:
       update-strategy: not_null
       id-type: auto
+feign:
+  sentinel:
+    enabled: true

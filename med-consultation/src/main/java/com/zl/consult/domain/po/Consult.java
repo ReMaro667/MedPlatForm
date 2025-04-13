@@ -11,6 +11,7 @@ public class Consult {
     @TableId(type = IdType.AUTO)
     private Long consultationId;
     private Long patientId;
+    private Long appointmentId;
     private Long doctorId;
     private String description;
     private String advice;
