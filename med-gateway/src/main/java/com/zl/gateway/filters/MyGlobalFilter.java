@@ -1,4 +1,4 @@
-package com.zl.filters;
+package com.zl.gateway.filters;
 
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
