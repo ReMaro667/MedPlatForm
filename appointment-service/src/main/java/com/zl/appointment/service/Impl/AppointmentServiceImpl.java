@@ -15,6 +15,7 @@ import com.zl.appointment.mapper.AppointmentMapper;
 import com.zl.appointment.service.IAppointmentService;
 import com.zl.domain.Result;
 
+import com.zl.enums.StatusEnums;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -26,6 +27,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -92,11 +94,6 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
     }
 
     @Override
-    public void payAppointment(Long appointmentId) {
-        appointmentMapper.pay(appointmentId);
-    }
-
-    @Override
     public void update(Long appointmentId, String status) {
         AppointmentStatus appointmentStatus = AppointmentStatus.valueOf(status);
         appointmentMapper.update(appointmentId, appointmentStatus.getValue());
@@ -120,7 +117,6 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
             queueNo = candidates.iterator().next();
             redisTemplate.opsForZSet().remove(key, queueNo);
         }
-
                 // 3. 更新状态
                 if (queueNo != null) {
                     String detailKey = "queue:detail:" +scheduleId+":"+ queueNo;
@@ -153,7 +149,6 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
 
     private String generateQueueNo(Long scheduleId) {
         // 生成日期+序号
-        LocalDate now = LocalDate.now();
         String dateStr = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
         String key = "queue:counter:" + scheduleId +":"+dateStr;
         //从redis获取当前序号
@@ -162,7 +157,6 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         redisTemplate.expire(key, 10, TimeUnit.MINUTES);
         return "Queue" + dateStr + String.format("%04d", count);
     }
-
 
     private String buildQueueKey(Long scheduleId){
         return "queue:"+scheduleId+":";
@@ -174,13 +168,12 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         // 生成排队号（日期+序号）
         Appointment appointment = lambdaQuery().eq(Appointment::getAppointmentId, appointmentId).one();
         Assert.notNull(appointment, "预约不存在");
-
+        if (!Objects.equals(appointment.getStatus(),StatusEnums.PENDING.toString()))
+            return Result.fail(400,"请勿重复挂号");
         Long userId = appointment.getPatientId();
         Long scheduleId = appointment.getScheduleId();
         String key = buildQueueKey(scheduleId);
         Set<String> candidates = redisTemplate.opsForZSet().range(key, 0, 0);
-        if (candidates != null)
-            return Result.fail(400, "请勿重复挂号");
         System.out.println("candidates:"+candidates);
         //获取当前挂号序号
         //key = "queue:counter:" + scheduleId + ":" +date
@@ -195,7 +188,6 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         //  存储挂号的详情信息姓名、医生、状态
         String detailKey = "queue:detail:"+scheduleId+":"+ queueNo;
         User userInfo = getInfo.getUserInfo(userId);
-//        Doctor doctorInfo = getInfo.getDoctorInfo(scheduleId);
         redisTemplate.opsForHash().putAll(detailKey, Map.of(
                 "patientId", String.valueOf(userId),  // 将 userId 转换为 String
                 "userName", userInfo.getRealName(),
@@ -234,14 +226,13 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
                     System.out.println("获取锁成功");
                     return true;
                 } else {
-                    System.out.println("获取锁失败");
+                    Thread.sleep(50);
                     count++;
                 }
             } catch (Exception e) {
                 System.err.println("获取锁时发生异常: " + e.getMessage());
                 count++;
             }
-            Thread.sleep(50); // 可以根据实际情况调整等待时间
         }
         return false;
     }

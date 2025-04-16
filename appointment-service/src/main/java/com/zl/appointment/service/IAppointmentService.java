@@ -1,11 +1,8 @@
 package com.zl.appointment.service;
 
 import com.zl.appointment.domain.dto.CreateAppointmentDTO;
-import com.zl.appointment.domain.dto.QueueDTO;
 import com.zl.appointment.domain.po.Department;
 import com.zl.domain.Result;
-
-import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -21,8 +18,6 @@ public interface IAppointmentService {
     Result<?> create(CreateAppointmentDTO createAppointmentDTO);
 
     List<CreateAppointmentDTO> record(Long userId);
-
-    void payAppointment(Long appointmentId);
 
     void update(Long appointmentId, String status);
 

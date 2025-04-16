@@ -25,13 +25,11 @@ public class RedisIDWorker {
         LocalDateTime now = LocalDateTime.now();
         long nowMillis = now.toEpochSecond(ZoneOffset.UTC);
         long timestamp = (nowMillis - BEGIN_TIME);
-
-        String key = KeyPrefix + ":id";
-
+//        String key = KeyPrefix + "id:";
         String date = now.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-
-        Long count = stringRedisTemplate.opsForValue().increment("irc:" + key + ":" + date);
-
+        Long count = stringRedisTemplate.opsForValue().increment("ircID:" + KeyPrefix + date);
+        //设置过期时间
+        stringRedisTemplate.expire("ircID:" + KeyPrefix + date, 24, java.util.concurrent.TimeUnit.HOURS);
         return (timestamp << COUNT_BITS | count);
     }
 

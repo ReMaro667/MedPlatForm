@@ -1,7 +1,6 @@
 package com.zl.appointment.domain.po;
 
 import com.baomidou.mybatisplus.annotation.*;
-import com.zl.appointment.enums.AppointmentStatus;
 import lombok.Data;
 import java.time.LocalDateTime;
 
@@ -20,7 +19,7 @@ public class Appointment {
 
     private Long patientId; // 患者ID（关联user-service）
 
-    private AppointmentStatus status; // 预约状态枚举
+    private String status; // 预约状态枚举
 
     private LocalDateTime createdAt;
 
