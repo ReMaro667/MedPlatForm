@@ -52,7 +52,6 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         LocalDate date = LocalDate.parse(createAppointmentDTO.getDate());
         String cacheKey = getCacheKeyForSchedule(scheduleId,date);
         Schedule schedule = getScheduleByScheduleId(createAppointmentDTO.getDepartmentId(),scheduleId, date);
-
         System.out.println("schedule:"+schedule);
         if (schedule == null){
             return Result.fail(400,"错误的预约");

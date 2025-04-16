@@ -1,17 +1,14 @@
 server:
   port: 7320
 spring:
-  application:
-    name: med-gateway
   cloud:
-    nacos:
-      server-addr: 192.168.42.129:8848
     gateway:
       routes:
         - id: appointment
           uri: lb://med-appointment
           predicates:
             - Path=/appointment/**
+            - Path=/department/**
         - id: consult
           uri: lb://med-consult
           predicates:
@@ -20,11 +17,11 @@ spring:
           uri: lb://med-user
           predicates:
             - Path=/users/**
-  datasource:
-    url: jdbc:mysql://192.168.42.129:3306/IOMCP?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&serverTimezone=Asia/Shanghai
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    username: root
-    password: 123
+        - id: prescription
+          uri: lb://med-prescription
+          predicates:
+            - Path=/prescription/**
+            - Path=/drug/**
 hm:
   jwt:
     location: classpath:hmall.jks

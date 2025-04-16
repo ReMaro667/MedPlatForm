@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: med-gateway
+  cloud:
+    nacos:
+      server-addr: 192.168.159.128
+      config:
+        file-extension: yaml
+        shared-configs:
+          - data-id: shared-jdbc.yaml

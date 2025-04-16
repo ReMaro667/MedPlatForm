@@ -15,5 +15,6 @@ public interface PrescriptionServiceClient {
 
     @PutMapping("drug/reduce/{id}")
     Result<?> reduce(@PathVariable Long id, @NotNull @RequestParam Integer quantity);
-
+    @GetMapping("drug/getprice/{id}")
+    public double getPrice(@PathVariable Long id);
 }
