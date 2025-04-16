@@ -1,18 +1,29 @@
 server:
-  port: 7315
+  port: 7313
+  tomcat:
+    threads:
+      max: 50
+    accept-count: 50
+    max-connections: 100
 spring:
   application:
-    name: med-consult
+    name: med-pay
   cloud:
+    sentinel:
+      transport:
+        dashboard: localhost:8090
+      http-method-specify: true
     nacos:
-      server-addr: 192.168.42.129:8848
+      server-addr: 192.168.159.128:8848
+  profiles:
+    active: dev
   datasource:
     url: jdbc:mysql://192.168.159.128:3306/IOMCP?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&serverTimezone=Asia/Shanghai
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: root
     password: 123
   redis:
-    host: 192.168.42.129
+    host: 192.168.159.128
     port: 6379
     password: ac123.
     lettuce:

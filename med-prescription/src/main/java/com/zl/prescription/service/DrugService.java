@@ -6,4 +6,5 @@ import com.zl.prescription.domain.po.Drug;
 
 public interface DrugService extends IService<Drug> {
     Result<?> reduce(Long id, Integer quantity);
+    double getPrice(Long drugId);
 }

@@ -17,5 +17,5 @@ public class OrderDTO {
     private String diagnosis;
     private StatusEnums status = StatusEnums.PENDING;
     private List<Prescription> prescriptions;
-
+    private double total;
 }

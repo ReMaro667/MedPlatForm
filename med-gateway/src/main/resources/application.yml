@@ -5,7 +5,7 @@ spring:
     name: med-gateway
   cloud:
     nacos:
-      server-addr: 192.168.42.129:8848
+      server-addr: 192.168.159.128:8848
     gateway:
       routes:
         - id: appointment

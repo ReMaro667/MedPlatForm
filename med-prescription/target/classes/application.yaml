@@ -32,3 +32,6 @@ mybatis-plus:
     db-config:
       update-strategy: not_null
       id-type: auto
+feign:
+  sentinel:
+    enabled: true

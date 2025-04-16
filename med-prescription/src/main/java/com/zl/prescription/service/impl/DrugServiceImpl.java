@@ -43,6 +43,7 @@ public class DrugServiceImpl extends ServiceImpl<DrugMapper, Drug> implements Dr
         }
         // 从数据库中获取库存
         Drug drug = lambdaQuery().eq(Drug::getDrugId,drugId ).one();
+        System.out.println("----------drug:"+drug);
         stock = drug.getStock();
         //存入Redis
         stringRedisTemplate.opsForValue().set(cacheKey, stock.toString());
@@ -58,7 +59,13 @@ public class DrugServiceImpl extends ServiceImpl<DrugMapper, Drug> implements Dr
             return Result.success();
         } else {
             // 如果缓存扣减失败，抛出异常或记录日志
-            return Result.fail(500, "库存不足");
+            throw new BizIllegalException("库存不足");
         }
+    }
+
+    @Override
+    public double getPrice(Long drugId) {
+        Drug drug = lambdaQuery().eq(Drug::getDrugId,drugId ).one();
+        return drug.getPrice();
     }
 }

@@ -13,6 +13,7 @@
         <module name="med-prescription" />
         <module name="med-common" />
         <module name="med-api" />
+        <module name="med-pay" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
@@ -27,6 +28,7 @@
       <module name="med-consultation" options="-parameters" />
       <module name="med-gateway" options="-parameters" />
       <module name="med-hospital" options="-parameters" />
+      <module name="med-pay" options="-parameters" />
       <module name="med-prescription" options="-parameters" />
       <module name="med-user" options="-parameters" />
       <module name="medplatform" options="" />

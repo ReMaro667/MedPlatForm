@@ -11,7 +11,7 @@ public class Drug {
     private Long drugId;
     private String name;
     private String category;
-    private String price;
+    private double price;
     private Integer stock;
     private Long pharmacyId;
     private LocalDateTime createdAt;

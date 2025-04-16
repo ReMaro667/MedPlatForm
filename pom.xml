@@ -30,6 +30,7 @@
         <module>appointment-service</module>
         <module>med-api</module>
         <module>med-prescription</module>
+        <module>med-pay</module>
     </modules>
 
     <properties>

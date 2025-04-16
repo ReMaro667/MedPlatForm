@@ -1,7 +1,9 @@
 package com.zl.consult.service.Impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.zl.api.client.DrugServiceClient;
 import com.zl.api.client.PrescriptionServiceClient;
+import com.zl.api.domain.po.Drug;
 import com.zl.api.domain.po.Prescription;
 import com.zl.consult.domain.po.OrderDTO;
 import com.zl.consult.mapper.ConsultMapper;
@@ -22,8 +24,8 @@ public class ConsultServiceImpl extends ServiceImpl<ConsultMapper, Consult> impl
     private final RedisIDWorker redisIDWorker;
 
     private final PrescriptionServiceClient prescriptionServiceClient;
+    private final DrugServiceClient drugServiceClient;
     @Override
-//    @GlobalTransactional
     public Result<?> create(OrderDTO orderDTO) {
         long id = redisIDWorker.nextId("consult:");
         System.out.println("consult:"+orderDTO);
@@ -35,10 +37,15 @@ public class ConsultServiceImpl extends ServiceImpl<ConsultMapper, Consult> impl
         consult.setDoctorId(orderDTO.getDoctorId());
         consult.setDescription(orderDTO.getDescription());
         consult.setAdvice(orderDTO.getAdvice());
-        consultMapper.insert(consult);
+
         //保存Prescription
+        double total=0;
         for (Prescription prescription : orderDTO.getPrescriptions()) {
             prescription.setConsultationId(id);
+            Long drugId = prescription.getDrugId();
+            double price = drugServiceClient.getPrice(drugId);
+            int num = prescription.getQuantity();
+            total+=num*price;
             System.out.println("prescription:"+prescription);
             try {
                 prescriptionServiceClient.reduce(prescription.getDrugId(), prescription.getQuantity());
@@ -47,6 +54,9 @@ public class ConsultServiceImpl extends ServiceImpl<ConsultMapper, Consult> impl
                 throw new RuntimeException("服务异常");
             }
         }
+        orderDTO.setTotal(total);
+        consult.setTotal(total);
+        consultMapper.insert(consult);
         return Result.success(orderDTO);
     }
 }

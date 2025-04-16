@@ -12,6 +12,7 @@ public class Consult {
     private Long consultationId;
     private Long patientId;
     private Long appointmentId;
+    private double total;
     private Long doctorId;
     private String description;
     private String advice;

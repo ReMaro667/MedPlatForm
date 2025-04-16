@@ -43,4 +43,9 @@ public class DrugController {
     public Result<?> getById(@PathVariable Long id) {
         return Result.success(drugService.getById(id));
     }
+
+    @GetMapping("getprice/{id}")
+    public double getPrice(@RequestParam Long drugId) {
+        return drugService.getById(drugId).getPrice();
+    }
 }
