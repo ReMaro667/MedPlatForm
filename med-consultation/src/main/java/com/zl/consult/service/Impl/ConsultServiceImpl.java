@@ -1,9 +1,7 @@
 package com.zl.consult.service.Impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.zl.api.client.DrugServiceClient;
 import com.zl.api.client.PrescriptionServiceClient;
-import com.zl.api.domain.po.Drug;
 import com.zl.api.domain.po.Prescription;
 import com.zl.consult.domain.po.OrderDTO;
 import com.zl.consult.mapper.ConsultMapper;
@@ -24,7 +22,6 @@ public class ConsultServiceImpl extends ServiceImpl<ConsultMapper, Consult> impl
     private final RedisIDWorker redisIDWorker;
 
     private final PrescriptionServiceClient prescriptionServiceClient;
-    private final DrugServiceClient drugServiceClient;
     @Override
     public Result<?> create(OrderDTO orderDTO) {
         long id = redisIDWorker.nextId("consult:");
@@ -43,7 +40,7 @@ public class ConsultServiceImpl extends ServiceImpl<ConsultMapper, Consult> impl
         for (Prescription prescription : orderDTO.getPrescriptions()) {
             prescription.setConsultationId(id);
             Long drugId = prescription.getDrugId();
-            double price = drugServiceClient.getPrice(drugId);
+            double price = prescriptionServiceClient.getPrice(drugId);
             int num = prescription.getQuantity();
             total+=num*price;
             System.out.println("prescription:"+prescription);

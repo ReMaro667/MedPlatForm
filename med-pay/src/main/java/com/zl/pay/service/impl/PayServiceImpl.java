@@ -3,7 +3,6 @@ package com.zl.pay.service.impl;
 import com.zl.pay.mapper.PayMapper;
 import com.zl.pay.service.PayService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor

@@ -1,12 +1,10 @@
 spring:
   application:
-    name: med-consult
+    name: med-gateway
   cloud:
     nacos:
       server-addr: 192.168.159.128
       config:
         file-extension: yaml
         shared-configs:
-          - dataId: shared-seata.yaml
           - data-id: shared-jdbc.yaml
-          - data-id: shared-redis.yaml
