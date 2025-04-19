@@ -70,6 +70,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         // 2.根据用户名或手机号查询
         User user = lambdaQuery().eq(User::getPhone,phone ).one();
         Assert.notNull(user, "用户不存在");
+        //缓存用户信息
+        stringRedisTemplate.opsForValue().set(RedisConstants.LOGIN_USER_KEY + phone, user.getUserId().toString(), LOGIN_CODE_TTL, TimeUnit.MINUTES);
 
         // 4.校验密码
         if (!passwordEncoder.matches(password, user.getPassword())) {
@@ -108,25 +110,4 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 //         5. 保存用户
         save(newUser);
     }
-
-
-
-//    @Override
-//    public void deductMoney(String pw, Integer totalFee) {
-//        log.info("开始扣款");
-//        // 1.校验密码
-//        User user = getById(UserContext.getUser());
-//        if(user == null || !passwordEncoder.matches(pw, user.getPassword())){
-//            // 密码错误
-//            throw new BizIllegalException("用户密码错误");
-//        }
-//
-//        // 2.尝试扣款
-//        try {
-//            baseMapper.updateMoney(UserContext.getUser(), totalFee);
-//        } catch (Exception e) {
-//            throw new RuntimeException("扣款失败，可能是余额不足！", e);
-//        }
-//        log.info("扣款成功");
-//    }
 }
