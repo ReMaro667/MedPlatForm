@@ -22,9 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
 import javax.annotation.Resource;
-
 import java.util.concurrent.TimeUnit;
-
 import static com.zl.user.utils.NicknameGenerator.generateRandomNickname;
 import static com.zl.utils.RedisConstants.LOGIN_CODE_TTL;
 
@@ -71,7 +69,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         User user = lambdaQuery().eq(User::getPhone,phone ).one();
         Assert.notNull(user, "用户不存在");
         //缓存用户信息
-        stringRedisTemplate.opsForValue().set(RedisConstants.LOGIN_USER_KEY + phone, user.getUserId().toString(), LOGIN_CODE_TTL, TimeUnit.MINUTES);
+        stringRedisTemplate.opsForValue().set("user:"+user.getUserId(),
+                user.toString(),
+                10,TimeUnit.MINUTES);
 
         // 4.校验密码
         if (!passwordEncoder.matches(password, user.getPassword())) {
