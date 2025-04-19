@@ -24,8 +24,7 @@ public class CreateAppointmentDTO {
     @NotNull
     private Long scheduleId; // 排班ID（关联hospital-service）
 
-    @NotNull
-    private Long patientId; // 患者ID（关联user-service）
+//    private Long patientId; // 患者ID（关联user-service）
 
     @NotNull
     private AppointmentStatus status; // 预约状态枚举

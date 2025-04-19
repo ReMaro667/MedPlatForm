@@ -58,12 +58,5 @@ public class AppointmentController {
         return appointmentService.record(userId);
     }
 
-    @ApiOperation("对预约付款")
-    @PutMapping("{id}")
-    public Result<?> payAppointment(@PathVariable("id") Long appointmentId){
-        appointmentService.payAppointment(appointmentId);
-        return Result.success();
-    }
-
 }
 

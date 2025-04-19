@@ -10,6 +10,7 @@ public class RedisConstants {
     public static final String CACHE_SHOP_KEY = "cache:shop:";
     public static final String LOCK_SHOP_KEY = "lock:shop:";
     public static final Long LOCK_SHOP_TTL = 10L;
-    public static final String DEPARTMENT_KEY = "departments:";
+    public static final String DEPARTMENTLIST_KEY = "departmentList:";
     public static final String SCHEDULE_KEY = "schedule:";
+    public static final String APPOINTMENT_KEY = "appointment:";
 }

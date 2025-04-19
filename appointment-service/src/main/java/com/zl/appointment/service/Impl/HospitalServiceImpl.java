@@ -15,7 +15,8 @@ import java.util.*;
 import java.time.LocalDate;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import static com.zl.utils.RedisConstants.DEPARTMENT_KEY;
+
+import static com.zl.utils.RedisConstants.DEPARTMENTLIST_KEY;
 
 @Slf4j
 @Service
@@ -29,7 +30,7 @@ public class HospitalServiceImpl implements HospitalService {
 
     @Override
     public Result<?> listDepartments() {
-        List<String> departments = stringRedisTemplate.opsForList().range(DEPARTMENT_KEY, 0, -1);
+        List<String> departments = stringRedisTemplate.opsForList().range(DEPARTMENTLIST_KEY, 0, -1);
         if (departments != null && !departments.isEmpty()) {
             List<Department> departmentList = new ArrayList<>();
             for (String departmentStr : departments) {
@@ -52,7 +53,7 @@ public class HospitalServiceImpl implements HospitalService {
         for (Department department : departmentList) {
             departmentStrSaveList.add(JSON.toJSONString(department));
         }
-        stringRedisTemplate.opsForList().rightPushAll(DEPARTMENT_KEY, departmentStrSaveList);
+        stringRedisTemplate.opsForList().rightPushAll(DEPARTMENTLIST_KEY, departmentStrSaveList);
         System.out.println("未命中----------departmentList:" + departmentList);
         return Result.success(departmentList);
     }
@@ -70,9 +71,9 @@ public class HospitalServiceImpl implements HospitalService {
     }
 
     private List<Schedule> querySchedulesList(Long departmentId, LocalDate date) {
-        String cacheKey = date +":"+departmentId;
+        String cacheKey = "<ScheduleList>:"+date +"||departmentId:"+departmentId;
         // 1. 查询缓存
-        Map<Object, Object> entries = cacheClient.getForHash(cacheKey);
+        Map<Object, Object> entries = stringRedisTemplate.opsForHash().entries(cacheKey);;
         if (!entries.isEmpty()) {
             List<Schedule> scheduleList = new ArrayList<>();
             for (Object key : entries.keySet()) {
@@ -90,7 +91,7 @@ public class HospitalServiceImpl implements HospitalService {
             //设空值
             log.debug("------------------------置空");
             stringRedisTemplate.opsForHash().put(cacheKey, "", "");
-            stringRedisTemplate.expire(cacheKey, 100, TimeUnit.SECONDS);
+            stringRedisTemplate.expire(cacheKey, 30, TimeUnit.MINUTES);
             return null;
         }
         log.debug("--------------------未命中{}",dbList);
@@ -101,7 +102,9 @@ public class HospitalServiceImpl implements HospitalService {
                         schedule -> schedule.getScheduleId().toString(), // 将 Long 类型的 scheduleId 转换为 String
                         JSON::toJSONString
                 ));
-        cacheClient.setForHash(cacheKey, cacheMap, 10L, TimeUnit.MINUTES);
+
+        stringRedisTemplate.opsForHash().putAll(cacheKey, cacheMap);
+        stringRedisTemplate.expire(cacheKey, 30, TimeUnit.MINUTES);
         return dbList;
     }
     }

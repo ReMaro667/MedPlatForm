@@ -16,6 +16,7 @@ import com.zl.appointment.service.IAppointmentService;
 import com.zl.domain.Result;
 
 import com.zl.enums.StatusEnums;
+import com.zl.utils.UserContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -24,7 +25,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -50,10 +53,17 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
     @Override
     @Transactional
     public Result<?> create(CreateAppointmentDTO createAppointmentDTO) {
+        //检测重复预约
+        if (UserContext.getUser()==null)
+            return Result.fail(400,"无用户信息");
+        Long userId = UserContext.getUser();
+        if (redisTemplate.opsForHash().get("appointmentUsers:",userId.toString())!=null){
+            return Result.fail(400,"重复预约,当天已预约");
+        }
         Long scheduleId = createAppointmentDTO.getScheduleId();
         LocalDate date = LocalDate.parse(createAppointmentDTO.getDate());
-        String cacheKey = getCacheKeyForSchedule(scheduleId,date);
-        Schedule schedule = getScheduleByScheduleId(createAppointmentDTO.getDepartmentId(),scheduleId, date);
+        String cacheKey = "<ScheduleList>:"+date +"||departmentId:"+createAppointmentDTO.getDepartmentId();
+        Schedule schedule = getCacheByScheduleId(createAppointmentDTO.getDepartmentId(),scheduleId, date);
         System.out.println("schedule:"+schedule);
         if (schedule == null){
             return Result.fail(400,"错误的预约");
@@ -71,13 +81,30 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
 
             System.out.println("------schedule:"+schedule);
             int maxPatients = schedule.getMaxPatients();
+            //新建缓存
+
+
+            if (!redisTemplate.opsForHash().putIfAbsent("appointmentUsers:",userId.toString(),"1")){
+                return Result.fail(400,"重复预约,当天已预约");
+            }
+            else {
+                //设置晚上12点过期
+                LocalDateTime now = LocalDateTime.now();
+                LocalDateTime midnight = now.toLocalDate().atStartOfDay().plusDays(1); // 当日晚上12点
+                long secondsUntilMidnight = ChronoUnit.SECONDS.between(now, midnight); // 计算时间差
+                redisTemplate.expire(
+                        "appointmentUser:"+ userId,
+                        secondsUntilMidnight,
+                        TimeUnit.SECONDS
+                );
+            }
             //更新redis库存
             schedule.setMaxPatients(maxPatients-1);
             String scheduleJson = JSON.toJSONString(schedule);
             redisTemplate.opsForHash().put(cacheKey, scheduleId.toString(), scheduleJson);
-            redisTemplate.expire(cacheKey, 10, TimeUnit.MINUTES);
-
+            redisTemplate.expire(cacheKey, 30, TimeUnit.MINUTES);
             //更新数据库
+
             appointmentMapper.updateCount(scheduleId);
             appointmentMapper.createAppointment(createAppointmentDTO);
             return Result.success();
@@ -127,9 +154,9 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
                 return Result.success("当前无等候患者");
     }
 
-    public Schedule getScheduleByScheduleId(Long departmentId,Long scheduleId, LocalDate date) {
+    public Schedule getCacheByScheduleId(Long departmentId,Long scheduleId, LocalDate date) {
         // 1. 查询缓存
-        String cacheKey = getCacheKeyForSchedule(departmentId, date);
+        String cacheKey = "<ScheduleList>:"+date +"||departmentId:"+departmentId;
         Map<Object, Object> entries = redisTemplate.opsForHash().entries(cacheKey);
         System.out.println("entries:" + entries+"---------"+cacheKey);
         if (!entries.isEmpty()) {
@@ -143,9 +170,9 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         return null;
     }
 
-    private String getCacheKeyForSchedule(Long departmentId, LocalDate date) {
-        return date + ":" + departmentId;
-    }
+//    private String getKeyForSchedule(Long departmentId, LocalDate date) {
+//        return "<ScheduleList>:"+date +"||departmentId:"+departmentId;
+//    }
 
     private String generateQueueNo(Long scheduleId) {
         // 生成日期+序号
@@ -154,7 +181,7 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         //从redis获取当前序号
         Long count = redisTemplate.opsForValue().increment(key);
         //设置缓存过期时间
-        redisTemplate.expire(key, 10, TimeUnit.MINUTES);
+        redisTemplate.expire(key, 24, TimeUnit.HOURS);
         return "Queue" + dateStr + String.format("%04d", count);
     }
 
@@ -231,7 +258,6 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
                 }
             } catch (Exception e) {
                 System.err.println("获取锁时发生异常: " + e.getMessage());
-                count++;
             }
         }
         return false;

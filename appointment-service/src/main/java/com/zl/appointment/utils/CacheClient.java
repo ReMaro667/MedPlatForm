@@ -34,14 +34,6 @@ public class CacheClient {
         stringRedisTemplate.opsForValue().set(key, JSONUtil.toJsonStr(value), expireTime, timeUnit);
     }
 
-    public Map<Object, Object> getForHash(String key) {
-        return stringRedisTemplate.opsForHash().entries(key);
-    }
-
-    public void setForHash(String key, Map<String,String> value, Long expireTime, TimeUnit timeUnit) {
-        stringRedisTemplate.opsForHash().putAll(key, value);
-        stringRedisTemplate.expire(key, expireTime, timeUnit);
-    }
 
     public void setWithLocalExpire(String key, Object value, Long expireTime, TimeUnit timeUnit) {
         //设置逻辑过期
