@@ -95,7 +95,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         // 2.根据用户名或手机号查询
         System.out.println("phone:" + phone);
         User user = lambdaQuery().eq(User::getPhone, phone).one();
-//        Assert.isNull(user, "用户已存在");
+        Assert.isNull(user, "用户已存在");
         // 3.加密密码
         String encodedPassword = passwordEncoder.encode(registerDTO.getPassword());
         System.out.println("encodedPassword:" + encodedPassword);
