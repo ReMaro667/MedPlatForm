@@ -262,6 +262,6 @@ CREATE TABLE `user`  (
 -- Records of user
 -- ----------------------------
 INSERT INTO `user` VALUES (1, 'Tescal', '$2a$10$xyz...', '13800000004', NULL, '李四', NULL, '2025-03-27 20:08:58', '2025-04-19 20:02:19');
-INSERT INTO `user` VALUES (2, 'CalmLion983', '$2a$10$pKLNowox7c2ZWAesYGSzcefHaSAw0.f1Acb1zosfYsR02UtNBAAQ2', '19197061091', NULL, '影子', NULL, '2025-03-28 21:41:56', '2025-03-28 21:41:56');
+INSERT INTO `user` VALUES (2, 'CalmLion983', '$2a$10$pKLNowox7c2ZWAesYGSzcefHaSAw0.f1Acb1zosfYsR02UtNBAAQ2', '19197066456', NULL, '影子', NULL, '2025-03-28 21:41:56', '2025-03-28 21:41:56');
 
 SET FOREIGN_KEY_CHECKS = 1;
