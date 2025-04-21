@@ -25,5 +25,7 @@ public interface IAppointmentService {
 
     Result<?> joinQueue(Long appointmentId);
 
-    Result<?> queueNext(Long appointmentId,Long departmentId,Long doctorId,Long screenId);
+    Result<?> queueNext(Long appointmentId,Long departmentId,Long screenId);
+
+    Result<?> call(Long scheduleId);
 }

@@ -36,14 +36,18 @@ public class AppointmentController {
     public Result<?> queueJoin(Long appointmentId){
         return appointmentService.joinQueue(appointmentId);
     }
-
-    @ApiOperation("过号")
+    @ApiOperation("叫号")
     @GetMapping("queue/call")
+    public Result<?> queueNext(@RequestParam Long scheduleId) {
+        return appointmentService.call(scheduleId);
+    }
+    @ApiOperation("过号")
+    @GetMapping("queue/remove")
     public Result<?> queueNext(@RequestParam Long appointmentId,
                                @RequestParam Long doctorId,
                                @RequestParam Long departmentId,
                                @RequestParam Long scheduleId) {
-        return appointmentService.queueNext(appointmentId,departmentId, doctorId,scheduleId);
+        return appointmentService.queueNext(appointmentId,departmentId,scheduleId);
     }
 
     @ApiOperation("更新预约状态/叫号")

@@ -24,7 +24,6 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
-
 import javax.annotation.Resource;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -47,6 +46,7 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
     private final RabbitTemplate rabbitTemplate;
     @Resource
     private RedissonClient redissonClient;
+
     @Override
     @Transactional
     public Result<?> create(CreateAppointmentDTO createAppointmentDTO) {
@@ -131,10 +131,62 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
     }
 
     @Override
-    public Result<?> queueNext(Long appointmentId,Long departmentId,Long doctorId,Long scheduleId) {
-                // 1. 优先处理过号队列
-        String key = buildQueueKey(appointmentId);
-        System.out.println("Key:"+key);
+    @Transactional
+    public Result<?> joinQueue(Long appointmentId) {
+//        redisTemplate.opsForSet();
+        // 生成排队号（日期+序号）
+        Appointment appointment = lambdaQuery().eq(Appointment::getAppointmentId, appointmentId).one();
+        Assert.notNull(appointment, "预约不存在");
+        if (Objects.equals(appointment.getStatus(),StatusEnums.PENDING.toString()))
+            return Result.fail(400,"请勿重复挂号");
+        Long userId = appointment.getPatientId();
+        Long scheduleId = appointment.getScheduleId();
+        String key = "queue:"+scheduleId;
+        Set<String> candidates = redisTemplate.opsForZSet().range(key, 0, 0);
+        System.out.println("candidates:"+candidates);
+        //获取当前挂号序号
+        String queueNo = generateQueueNo(scheduleId);//Queue202504070002
+
+        // 存储Redis队列
+        // 根据时间戳进行有序排队value = 排队号+时间戳
+        String queueKey = "queue:"+scheduleId;
+        redisTemplate.opsForZSet().add(queueKey, queueNo,System.currentTimeMillis());
+
+        //  存储挂号的详情信息姓名、医生、状态
+        String detailKey = "queue:detail:"+scheduleId+":"+ queueNo;
+        User userInfo = getInfo.getUserInfo(userId);
+        redisTemplate.opsForHash().putAll(detailKey,Map.of(
+                "patientId", String.valueOf(userId),  // 将 userId 转换为 String
+                "userName", userInfo.getRealName(),
+                "doctorId", String.valueOf(2),  // 将 doctorId 转换为 String
+                "doctorName", "doctorName",
+                "status", String.valueOf(1)  // 将 status 转换为 String
+        ));
+        //设置过期时间
+        redisTemplate.expire(detailKey, 2, TimeUnit.HOURS);
+
+//         写入数据库
+        Queue queue = new Queue();
+        queue.setQueueNo(queueNo);
+        queue.setAppointmentId(appointmentId);
+        queue.setStatus(1);
+        //TODO 判断是否支付
+        appointmentMapper.update(appointmentId, StatusEnums.COMPLETED.getValue());
+        appointmentMapper.queueJoin(queue);
+        JoinQueueVo joinQueueVo = new JoinQueueVo();
+        joinQueueVo.setUserId(userId);
+        joinQueueVo.setNum(queueNo);
+        joinQueueVo.setUserName(userInfo.getRealName());
+        joinQueueVo.setDoctorName("doctorName");
+        joinQueueVo.setDoctorId(999L);
+        joinQueueVo.setStatus(1);
+        return Result.success(joinQueueVo);
+    }
+
+    @Override
+    public Result<?> queueNext(Long appointmentId,Long departmentId,Long scheduleId) {
+
+        String key = "queue:"+scheduleId;
         Set<String> candidates = redisTemplate.opsForZSet().range(key, 0, 0);
         System.out.println("candidates:"+candidates);
         String queueNo = null;
@@ -146,10 +198,30 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
                 if (queueNo != null) {
                     String detailKey = "queue:detail:" +scheduleId+":"+ queueNo;
                     redisTemplate.opsForHash().put(detailKey, "status", "2");
-                    appointmentMapper.updateQueue(departmentId,doctorId);
+                    //就诊完成后保留三十分钟
+                    redisTemplate.expire(detailKey, 30, TimeUnit.MINUTES);
+                    appointmentMapper.updateQueue(departmentId,2L);
                     return Result.success(queueNo+"已更新");
                 }
                 return Result.success("当前无等候患者");
+    }
+
+    @Override
+    public Result<?> call(Long scheduleId) {
+        // TODO 发送消息通知患者
+        //修改队列状态
+        String key = "queue:"+scheduleId;
+        Set<String> candidates = redisTemplate.opsForZSet().range(key, 0, 0);
+        String queueNo = null;
+        if (candidates != null && !candidates.isEmpty()) {
+            queueNo = candidates.iterator().next();
+        }
+        if (queueNo != null) {
+            String detailKey = "queue:detail:" +scheduleId+":"+ queueNo;
+            redisTemplate.expire(detailKey, 30, TimeUnit.MINUTES);
+            return Result.success(queueNo+"已更新");
+        }
+        return Result.success();
     }
 
     public Schedule getCacheByScheduleId(Long departmentId,Long scheduleId, LocalDate date) {
@@ -168,10 +240,6 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         return null;
     }
 
-//    private String getKeyForSchedule(Long departmentId, LocalDate date) {
-//        return "<ScheduleList>:"+date +"||departmentId:"+departmentId;
-//    }
-
     private String generateQueueNo(Long scheduleId) {
         // 生成日期+序号
         String dateStr = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
@@ -181,65 +249,6 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         //设置缓存过期时间
         redisTemplate.expire(key, 24, TimeUnit.HOURS);
         return "Queue" + dateStr + String.format("%04d", count);
-    }
-
-    private String buildQueueKey(Long scheduleId){
-        return "queue:"+scheduleId+":";
-    }
-
-    @Override
-    @Transactional
-    public Result<?> joinQueue(Long appointmentId) {
-
-        // 生成排队号（日期+序号）
-        Appointment appointment = lambdaQuery().eq(Appointment::getAppointmentId, appointmentId).one();
-        Assert.notNull(appointment, "预约不存在");
-        if (Objects.equals(appointment.getStatus(),StatusEnums.PENDING.toString()))
-            return Result.fail(400,"请勿重复挂号");
-        Long userId = appointment.getPatientId();
-        Long scheduleId = appointment.getScheduleId();
-        String key = buildQueueKey(scheduleId);
-        Set<String> candidates = redisTemplate.opsForZSet().range(key, 0, 0);
-        System.out.println("candidates:"+candidates);
-        //获取当前挂号序号
-        //key = "queue:counter:" + scheduleId + ":" +date
-        String queueNo = generateQueueNo(scheduleId);//Queue202504070002
-
-        // 存储Redis队列
-        //key = "queue:scheduleId"
-        // 根据时间戳进行有序排队value = 排队号+时间戳
-        String queueKey = buildQueueKey(scheduleId);
-        redisTemplate.opsForZSet().add(queueKey, queueNo,System.currentTimeMillis());
-
-        //  存储挂号的详情信息姓名、医生、状态
-        String detailKey = "queue:detail:"+scheduleId+":"+ queueNo;
-        User userInfo = getInfo.getUserInfo(userId);
-        redisTemplate.opsForHash().putAll(detailKey, Map.of(
-                "patientId", String.valueOf(userId),  // 将 userId 转换为 String
-                "userName", userInfo.getRealName(),
-                "doctorId", String.valueOf(999),  // 将 doctorId 转换为 String
-                "doctorName", "doctorName",
-                "status", String.valueOf(1)  // 将 status 转换为 String
-        ));
-        //设置过期时间
-        redisTemplate.expire(detailKey, 30, TimeUnit.MINUTES);
-
-//         写入数据库
-        Queue queue = new Queue();
-        queue.setQueueNo(queueNo);
-        queue.setAppointmentId(appointmentId);
-        queue.setStatus(1);
-        //TODO 判断是否支付
-        appointmentMapper.update(appointmentId, StatusEnums.COMPLETED.getValue());
-        appointmentMapper.queueJoin(queue);
-        JoinQueueVo joinQueueVo = new JoinQueueVo();
-        joinQueueVo.setUserId(userId);
-        joinQueueVo.setNum(queueNo);
-        joinQueueVo.setUserName(userInfo.getRealName());
-        joinQueueVo.setDoctorName("doctorName");
-        joinQueueVo.setDoctorId(999L);
-        joinQueueVo.setStatus(1);
-        return Result.success(joinQueueVo);
     }
 
     public boolean tryLock(Long scheduleId) {
