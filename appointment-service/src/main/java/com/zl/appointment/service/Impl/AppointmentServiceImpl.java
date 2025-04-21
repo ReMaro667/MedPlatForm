@@ -19,11 +19,11 @@ import com.zl.enums.StatusEnums;
 import com.zl.utils.UserContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -49,13 +49,12 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
     private final AppointmentMapper appointmentMapper;
     private final StringRedisTemplate redisTemplate;
     private final GetInfo getInfo;
+    private final RabbitTemplate rabbitTemplate;
 
     @Override
     @Transactional
     public Result<?> create(CreateAppointmentDTO createAppointmentDTO) {
         //检测重复预约
-        if (UserContext.getUser()==null)
-            return Result.fail(400,"无用户信息");
         Long userId = UserContext.getUser();
         if (redisTemplate.opsForHash().get("appointmentUsers:",userId.toString())!=null){
             return Result.fail(400,"重复预约,当天已预约");
@@ -81,9 +80,7 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
 
             System.out.println("------schedule:"+schedule);
             int maxPatients = schedule.getMaxPatients();
-            //新建缓存
-
-
+                //新建缓存
             if (!redisTemplate.opsForHash().putIfAbsent("appointmentUsers:",userId.toString(),"1")){
                 return Result.fail(400,"重复预约,当天已预约");
             }
@@ -93,7 +90,7 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
                 LocalDateTime midnight = now.toLocalDate().atStartOfDay().plusDays(1); // 当日晚上12点
                 long secondsUntilMidnight = ChronoUnit.SECONDS.between(now, midnight); // 计算时间差
                 redisTemplate.expire(
-                        "appointmentUser:"+ userId,
+                        "appointmentUser:" + userId,
                         secondsUntilMidnight,
                         TimeUnit.SECONDS
                 );
@@ -104,9 +101,14 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
             redisTemplate.opsForHash().put(cacheKey, scheduleId.toString(), scheduleJson);
             redisTemplate.expire(cacheKey, 30, TimeUnit.MINUTES);
             //更新数据库
-
+            createAppointmentDTO.setPatientId(userId);
             appointmentMapper.updateCount(scheduleId);
             appointmentMapper.createAppointment(createAppointmentDTO);
+            try {
+                rabbitTemplate.convertAndSend("appointment.topic", "appointment.success",userId);
+            } catch (Exception e) {
+                log.error("预约成功的消息发送失败，用户id：{}",userId, e);
+            }
             return Result.success();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
@@ -223,14 +225,12 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
                 "status", String.valueOf(1)  // 将 status 转换为 String
         ));
         //设置过期时间
-        redisTemplate.expire(detailKey, 10L, TimeUnit.MINUTES);
+        redisTemplate.expire(detailKey, 30, TimeUnit.MINUTES);
 
 //         写入数据库
         Queue queue = new Queue();
         queue.setQueueNo(queueNo);
         queue.setAppointmentId(appointmentId);
-        queue.setDoctorId(999L);
-        queue.setPatientId(userId);
         queue.setStatus(1);
         appointmentMapper.queueJoin(queue);
         JoinQueueVo joinQueueVo = new JoinQueueVo();

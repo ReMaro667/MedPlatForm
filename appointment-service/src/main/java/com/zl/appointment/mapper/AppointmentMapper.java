@@ -54,8 +54,8 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
     @Select("select * from department d where d.disease like CONCAT('%', #{name}, '%')")
     Department advice(String symptom);
 
-    @Insert("insert into queue (queue_no,patient_id,doctor_id,status,appointment_id) " +
-            "values (#{queueNo},#{patientId},#{doctorId},#{status},#{appointmentId})")
+    @Insert("insert into queue (queue_no,status,appointment_id) " +
+            "values (#{queueNo},#{status},#{appointmentId})")
     void queueJoin(Queue queue);
 
     @Update("update queue q set q.status = #{status} where q.department_id=#{departmentId} and q.doctor_id = #{doctorId}")

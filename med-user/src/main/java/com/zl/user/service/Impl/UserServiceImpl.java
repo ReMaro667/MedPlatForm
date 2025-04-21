@@ -59,6 +59,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         return Result.success();
     }
 
+    @Override
+    public void postmassage(Long userId) {
+        //发送短信通知用户
+        System.out.println("---------------发送短信通知用户成功");
+    }
+
 
     @Override
     public UserLoginVO login(LoginFormDTO loginDTO) {

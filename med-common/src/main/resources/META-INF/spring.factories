@@ -1,2 +1,3 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-  com.zl.config.MvcConfig
+  com.zl.config.MvcConfig,\
+  com.zl.config.MQConfig

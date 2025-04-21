@@ -19,4 +19,6 @@ public interface IUserService extends IService<User> {
     UserLoginVO login(LoginFormDTO loginFormDTO);
     void register(RegisterDTO registerDTO);
     Result<?> sendCode(String phone);
+
+    void postmassage(Long userId);
 }

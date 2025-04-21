@@ -45,8 +45,11 @@ public class ConsultServiceImpl extends ServiceImpl<ConsultMapper, Consult> impl
             total+=num*price;
             System.out.println("prescription:"+prescription);
             try {
+                //可优化
                 prescriptionServiceClient.reduce(prescription.getDrugId(), prescription.getQuantity());
                 prescriptionServiceClient.save(prescription);
+
+                //发送通知药房采药
             }catch (Exception e){
                 throw new RuntimeException("服务异常");
             }

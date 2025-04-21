@@ -11,8 +11,6 @@ public class Queue {
     @TableId(type = IdType.AUTO)
     Long id;
     Long appointmentId;
-    Long patientId;
-    Long doctorId;
     String queueNo;
     int status;
     LocalDateTime create_time;
