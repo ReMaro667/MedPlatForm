@@ -1,6 +1,5 @@
 package com.zl.user.controller;
 
-import com.zl.domain.Result;
 import com.zl.user.domain.po.Doctor;
 import com.zl.user.service.IDoctorService;
 import org.springframework.web.bind.annotation.GetMapping;

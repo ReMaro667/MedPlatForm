@@ -1,5 +1,4 @@
 package com.zl.appointment.service.Impl;
-
 import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.zl.api.client.GetInfo;
@@ -14,16 +13,19 @@ import com.zl.appointment.enums.AppointmentStatus;
 import com.zl.appointment.mapper.AppointmentMapper;
 import com.zl.appointment.service.IAppointmentService;
 import com.zl.domain.Result;
-
 import com.zl.enums.StatusEnums;
 import com.zl.utils.UserContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
+
+import javax.annotation.Resource;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -34,13 +36,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-/**
- * <p>
- * 用户表 服务实现类
- * </p>
- *
- * @author 虎哥
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -50,7 +45,8 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
     private final StringRedisTemplate redisTemplate;
     private final GetInfo getInfo;
     private final RabbitTemplate rabbitTemplate;
-
+    @Resource
+    private RedissonClient redissonClient;
     @Override
     @Transactional
     public Result<?> create(CreateAppointmentDTO createAppointmentDTO) {
@@ -110,7 +106,7 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
                 log.error("预约成功的消息发送失败，用户id：{}",userId, e);
             }
             return Result.success();
-        } catch (InterruptedException e) {
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }finally {
             releaseLock(scheduleId);
@@ -194,10 +190,11 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
     @Override
     @Transactional
     public Result<?> joinQueue(Long appointmentId) {
+
         // 生成排队号（日期+序号）
         Appointment appointment = lambdaQuery().eq(Appointment::getAppointmentId, appointmentId).one();
         Assert.notNull(appointment, "预约不存在");
-        if (!Objects.equals(appointment.getStatus(),StatusEnums.PENDING.toString()))
+        if (Objects.equals(appointment.getStatus(),StatusEnums.PENDING.toString()))
             return Result.fail(400,"请勿重复挂号");
         Long userId = appointment.getPatientId();
         Long scheduleId = appointment.getScheduleId();
@@ -232,6 +229,8 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         queue.setQueueNo(queueNo);
         queue.setAppointmentId(appointmentId);
         queue.setStatus(1);
+        //TODO 判断是否支付
+        appointmentMapper.update(appointmentId, StatusEnums.COMPLETED.getValue());
         appointmentMapper.queueJoin(queue);
         JoinQueueVo joinQueueVo = new JoinQueueVo();
         joinQueueVo.setUserId(userId);
@@ -243,34 +242,23 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         return Result.success(joinQueueVo);
     }
 
-    private boolean tryLock(Long scheduleId) throws InterruptedException {
+    public boolean tryLock(Long scheduleId) {
         String lockKey = "lock:appointmentStock:" + scheduleId;
-        int count = 0;
-        while (count < 10) {
-            try {
-                boolean success = Boolean.TRUE.equals(redisTemplate.opsForValue().setIfAbsent(lockKey, "1", 10, TimeUnit.SECONDS));
-                if (success) {
-                    System.out.println("获取锁成功");
-                    return true;
-                } else {
-                    Thread.sleep(50);
-                    count++;
-                }
-            } catch (Exception e) {
-                System.err.println("获取锁时发生异常: " + e.getMessage());
-            }
+        RLock lock = redissonClient.getLock(lockKey);
+        try {
+            return lock.tryLock(5, 30, TimeUnit.SECONDS); // 等待0秒，锁持有30秒
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
         }
-        return false;
     }
 
     // 释放锁的方法
-    private void releaseLock(Long scheduleId) {
+    public void releaseLock(Long scheduleId) {
         String lockKey = "lock:appointmentStock:" + scheduleId;
-        try {
-            redisTemplate.delete(lockKey);
-            System.out.println("释放锁成功");
-        } catch (Exception e) {
-            System.err.println("释放锁时发生异常: " + e.getMessage());
+        RLock lock = redissonClient.getLock(lockKey);
+        if (lock.isHeldByCurrentThread()) {
+            lock.unlock();
         }
     }
 }

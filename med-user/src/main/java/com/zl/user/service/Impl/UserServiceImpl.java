@@ -26,13 +26,6 @@ import java.util.concurrent.TimeUnit;
 import static com.zl.user.utils.NicknameGenerator.generateRandomNickname;
 import static com.zl.utils.RedisConstants.LOGIN_CODE_TTL;
 
-/**
- * <p>
- * 用户表 服务实现类
- * </p>
- *
- * @author 虎哥
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor

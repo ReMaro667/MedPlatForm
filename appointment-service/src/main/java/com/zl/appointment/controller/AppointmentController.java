@@ -37,7 +37,7 @@ public class AppointmentController {
         return appointmentService.joinQueue(appointmentId);
     }
 
-    @ApiOperation("叫号")
+    @ApiOperation("过号")
     @GetMapping("queue/call")
     public Result<?> queueNext(@RequestParam Long appointmentId,
                                @RequestParam Long doctorId,
@@ -45,7 +45,8 @@ public class AppointmentController {
                                @RequestParam Long scheduleId) {
         return appointmentService.queueNext(appointmentId,departmentId, doctorId,scheduleId);
     }
-    @ApiOperation("更新预约状态")
+
+    @ApiOperation("更新预约状态/叫号")
     @PutMapping("update")
     public Result<?> update(Long appointmentId,String status){
         appointmentService.update(appointmentId,status);

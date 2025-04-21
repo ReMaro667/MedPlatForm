@@ -15,8 +15,8 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <spring-data-releasetrain.version>2021.2.12</spring-data-releasetrain.version>
     </properties>
-
     <dependencies>
 
         <dependency>
@@ -94,6 +94,11 @@
 <!--            <groupId>com.alibaba.cloud</groupId>-->
 <!--            <artifactId>spring-cloud-starter-alibaba-seata</artifactId>-->
 <!--        </dependency>-->
+        <dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson-spring-data-27</artifactId>
+            <version>3.23.4</version>
+        </dependency>
         <!--消息发送-->
         <dependency>
             <groupId>org.springframework.boot</groupId>
