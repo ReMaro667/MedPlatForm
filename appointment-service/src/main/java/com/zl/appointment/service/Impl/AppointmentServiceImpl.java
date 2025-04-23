@@ -9,8 +9,10 @@ import com.zl.appointment.domain.po.Department;
 import com.zl.appointment.domain.po.Queue;
 import com.zl.appointment.domain.po.Schedule;
 import com.zl.appointment.domain.vo.JoinQueueVo;
+import com.zl.appointment.domain.vo.QueueVo;
 import com.zl.appointment.enums.AppointmentStatus;
 import com.zl.appointment.mapper.AppointmentMapper;
+import com.zl.appointment.mapper.QueueMapper;
 import com.zl.appointment.service.IAppointmentService;
 import com.zl.domain.Result;
 import com.zl.enums.StatusEnums;
@@ -20,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,10 +32,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -41,11 +41,14 @@ import java.util.concurrent.TimeUnit;
 public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appointment> implements IAppointmentService{
 
     private final AppointmentMapper appointmentMapper;
+    private final QueueMapper queueMapper;
     private final StringRedisTemplate redisTemplate;
     private final GetInfo getInfo;
     private final RabbitTemplate rabbitTemplate;
     @Resource
     private RedissonClient redissonClient;
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
 
     @Override
     @Transactional
@@ -119,9 +122,8 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
     }
 
     @Override
-    public void update(Long appointmentId, String status) {
-        AppointmentStatus appointmentStatus = AppointmentStatus.valueOf(status);
-        appointmentMapper.update(appointmentId, appointmentStatus.getValue());
+    public void updateQueue(Long appointmentId, int status) {
+        queueMapper.updateQueue(appointmentId, status);
     }
 
     @Override
@@ -133,17 +135,15 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
     @Override
     @Transactional
     public Result<?> joinQueue(Long appointmentId) {
-//        redisTemplate.opsForSet();
         // 生成排队号（日期+序号）
         Appointment appointment = lambdaQuery().eq(Appointment::getAppointmentId, appointmentId).one();
         Assert.notNull(appointment, "预约不存在");
-        if (Objects.equals(appointment.getStatus(),StatusEnums.PENDING.toString()))
-            return Result.fail(400,"请勿重复挂号");
+        if (Objects.equals(appointment.getStatus(),StatusEnums.PENDING.getValue()))
+            return Result.fail(400,"未付款");
+        if (Objects.equals(appointment.getStatus(),StatusEnums.COMPLETED.getValue()))
+            return Result.success("请勿重复挂号");
         Long userId = appointment.getPatientId();
         Long scheduleId = appointment.getScheduleId();
-        String key = "queue:"+scheduleId;
-        Set<String> candidates = redisTemplate.opsForZSet().range(key, 0, 0);
-        System.out.println("candidates:"+candidates);
         //获取当前挂号序号
         String queueNo = generateQueueNo(scheduleId);//Queue202504070002
 
@@ -151,76 +151,100 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         // 根据时间戳进行有序排队value = 排队号+时间戳
         String queueKey = "queue:"+scheduleId;
         redisTemplate.opsForZSet().add(queueKey, queueNo,System.currentTimeMillis());
-
+        appointmentMapper.update(appointmentId, StatusEnums.COMPLETED.getValue());
         //  存储挂号的详情信息姓名、医生、状态
         String detailKey = "queue:detail:"+scheduleId+":"+ queueNo;
         User userInfo = getInfo.getUserInfo(userId);
         redisTemplate.opsForHash().putAll(detailKey,Map.of(
+                "appointmentId",String.valueOf(appointmentId),
+                    "queueNo",queueNo,
                 "patientId", String.valueOf(userId),  // 将 userId 转换为 String
                 "userName", userInfo.getRealName(),
-                "doctorId", String.valueOf(2),  // 将 doctorId 转换为 String
-                "doctorName", "doctorName",
                 "status", String.valueOf(1)  // 将 status 转换为 String
         ));
-        //设置过期时间
-        redisTemplate.expire(detailKey, 2, TimeUnit.HOURS);
-
-//         写入数据库
-        Queue queue = new Queue();
-        queue.setQueueNo(queueNo);
-        queue.setAppointmentId(appointmentId);
-        queue.setStatus(1);
-        //TODO 判断是否支付
+        //写入数据库
+        Queue queue = new Queue(appointmentId,queueNo,scheduleId,1);
         appointmentMapper.update(appointmentId, StatusEnums.COMPLETED.getValue());
-        appointmentMapper.queueJoin(queue);
-        JoinQueueVo joinQueueVo = new JoinQueueVo();
-        joinQueueVo.setUserId(userId);
-        joinQueueVo.setNum(queueNo);
-        joinQueueVo.setUserName(userInfo.getRealName());
-        joinQueueVo.setDoctorName("doctorName");
-        joinQueueVo.setDoctorId(999L);
-        joinQueueVo.setStatus(1);
-        return Result.success(joinQueueVo);
+        queueMapper.queueJoin(queue);
+        return Result.success(queue);
     }
 
     @Override
-    public Result<?> queueNext(Long appointmentId,Long departmentId,Long scheduleId) {
+    public Result<?> getQueue(Long scheduleId) {
+        String queueKey = "queue:"+scheduleId;
 
-        String key = "queue:"+scheduleId;
+        Set<String> range = redisTemplate.opsForZSet().range(queueKey, 0, -1);
+        if (range == null || range.isEmpty()) {
+            return Result.success("暂无信息");
+        }
+//        ArrayList queueList = new ArrayList<>;
+        for (String QueueNo : range) {
+            String detailKey = "queue:detail:"+scheduleId+":"+ QueueNo;
+            Object appointmentInfo = redisTemplate.opsForHash().entries(detailKey);
+//            queueList.add(appointmentInfo);
+        }
+
+        String delayKey = "delayQueue:"+scheduleId;
+//        Set<String> range1 = redisTemplate.opsForZSet().range(delayKey, 0, -1);
+//        QueueVo queueVo = new QueueVo(range, range1);
+        return Result.success(range);
+    }
+
+    @Override
+    public Result<?> call(Long scheduleId) {
+        //0 普通队列 1 延迟队列
+        // TODO 发送消息通知患者
+        String key;
+        key = "queue:"+scheduleId;
+
         Set<String> candidates = redisTemplate.opsForZSet().range(key, 0, 0);
-        System.out.println("candidates:"+candidates);
         String queueNo = null;
         if (candidates != null && !candidates.isEmpty()) {
             queueNo = candidates.iterator().next();
             redisTemplate.opsForZSet().remove(key, queueNo);
         }
-                // 3. 更新状态
-                if (queueNo != null) {
-                    String detailKey = "queue:detail:" +scheduleId+":"+ queueNo;
-                    redisTemplate.opsForHash().put(detailKey, "status", "2");
-                    //就诊完成后保留三十分钟
-                    redisTemplate.expire(detailKey, 30, TimeUnit.MINUTES);
-                    appointmentMapper.updateQueue(departmentId,2L);
-                    return Result.success(queueNo+"已更新");
-                }
-                return Result.success("当前无等候患者");
+
+        if (queueNo != null) {
+            String detailKey = "queue:detail:"+scheduleId+":"+ queueNo;
+            Object appointmentIdObj = redisTemplate.opsForHash().get(detailKey, "appointmentId");
+            redisTemplate.opsForHash().put(detailKey, "status", "2");
+            Long appointmentId = null;
+            if (appointmentIdObj != null) {
+                appointmentId = Long.parseLong((String) appointmentIdObj);
+            }
+            queueMapper.updateQueue(appointmentId, 2);
+            redisTemplate.expire(detailKey, 2, TimeUnit.HOURS);
+            //开入延迟队列
+            String delayerKey = "delayer:" + scheduleId + ":" + queueNo;
+            redisTemplate.opsForValue().set(delayerKey,"");
+            redisTemplate.expire(delayerKey, 2, TimeUnit.HOURS);
+
+            String delayQueueKey = "delayQueue:"+scheduleId;
+            redisTemplate.opsForSet().add(delayQueueKey, queueNo);
+            redisTemplate.expire(delayQueueKey, 2, TimeUnit.HOURS);
+            Map<Object, Object> info = redisTemplate.opsForHash().entries(detailKey);
+            return Result.success(info);
+        }
+        return Result.fail(400,"空队列");
     }
 
     @Override
-    public Result<?> call(Long scheduleId) {
-        // TODO 发送消息通知患者
-        //修改队列状态
-        String key = "queue:"+scheduleId;
-        Set<String> candidates = redisTemplate.opsForZSet().range(key, 0, 0);
-        String queueNo = null;
-        if (candidates != null && !candidates.isEmpty()) {
-            queueNo = candidates.iterator().next();
+    public Result<?> removeQueue(Long scheduleId,Long appointmentId,String queueNo,int type) {
+        if (type == 0) {
+            String queueKey = "queue:" + scheduleId;
+            redisTemplate.opsForZSet().remove(queueKey, queueNo);
+            String detailKey = "queue:detail:"+scheduleId+":"+ queueNo;
+            redisTemplate.opsForHash().delete(detailKey);
         }
-        if (queueNo != null) {
-            String detailKey = "queue:detail:" +scheduleId+":"+ queueNo;
-            redisTemplate.expire(detailKey, 30, TimeUnit.MINUTES);
-            return Result.success(queueNo+"已更新");
+        else {
+            String delayQueueKey = "delayQueue:" + scheduleId + ":" + queueNo;
+            redisTemplate.opsForSet().remove(delayQueueKey,queueNo);
+            String detailKey = "queue:detail:"+scheduleId;
+            redisTemplate.opsForHash().delete(detailKey);
+            String delayerKey = "delayer:" + scheduleId + ":" + queueNo;
+            redisTemplate.delete(delayerKey);
         }
+        queueMapper.updateQueue(appointmentId,4);
         return Result.success();
     }
 
@@ -248,7 +272,7 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         Long count = redisTemplate.opsForValue().increment(key);
         //设置缓存过期时间
         redisTemplate.expire(key, 24, TimeUnit.HOURS);
-        return "Queue" + dateStr + String.format("%04d", count);
+        return dateStr + String.format("%04d", count);
     }
 
     public boolean tryLock(Long scheduleId) {

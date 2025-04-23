@@ -19,13 +19,15 @@ public interface IAppointmentService {
 
     List<CreateAppointmentDTO> record(Long userId);
 
-    void update(Long appointmentId, String status);
+    void updateQueue(Long appointmentId, int status);
 
     Department advice(String symptom);
 
     Result<?> joinQueue(Long appointmentId);
 
-    Result<?> queueNext(Long appointmentId,Long departmentId,Long screenId);
+    Result<?> removeQueue(Long scheduleId,Long appointmentId,String queueNo,int type);
 
     Result<?> call(Long scheduleId);
+
+    Result<?> getQueue(Long scheduleId);
 }

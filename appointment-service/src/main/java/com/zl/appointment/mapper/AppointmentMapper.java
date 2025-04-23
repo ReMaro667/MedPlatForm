@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.zl.appointment.domain.dto.CreateAppointmentDTO;
 import com.zl.appointment.domain.po.Appointment;
 import com.zl.appointment.domain.po.Department;
-import com.zl.appointment.domain.po.Queue;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
@@ -41,12 +40,6 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
     @Select("select s.max_patients from schedule s where schedule_id=#{scheduleId}")
     int getCount(Long scheduleId);
 
-    /**
-     * 更新预约状态
-     * 已付款
-     * */
-    @Update("update appointment a set a.status = 'paid' where appointment_id = #{appointmentId}")
-    void pay(Long appointmentId);
 
     @Update("update appointment a set a.status = #{status} where appointment_id = #{appointmentId}")
     void update(Long appointmentId, String status);
@@ -54,10 +47,4 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
     @Select("select * from department d where d.disease like CONCAT('%', #{name}, '%')")
     Department advice(String symptom);
 
-    @Insert("insert into queue (queue_no,status,appointment_id) " +
-            "values (#{queueNo},#{status},#{appointmentId})")
-    void queueJoin(Queue queue);
-
-    @Update("update queue q set q.status = #{status} where q.department_id=#{departmentId} and q.doctor_id = #{doctorId}")
-    void updateQueue(Long departmentId,Long doctorId);
 }

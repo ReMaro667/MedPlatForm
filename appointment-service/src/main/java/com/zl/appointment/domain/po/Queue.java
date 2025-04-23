@@ -13,5 +13,13 @@ public class Queue {
     Long appointmentId;
     String queueNo;
     int status;
+    Long scheduleId;
     LocalDateTime create_time;
+
+    public Queue(Long appointmentId, String queueNo, Long scheduleId,int status) {
+        this.appointmentId = appointmentId;
+        this.queueNo = queueNo;
+        this.status = status;
+        this.scheduleId = scheduleId;
+    }
 }

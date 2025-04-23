@@ -36,24 +36,33 @@ public class AppointmentController {
     public Result<?> queueJoin(Long appointmentId){
         return appointmentService.joinQueue(appointmentId);
     }
-    @ApiOperation("叫号")
-    @GetMapping("queue/call")
-    public Result<?> queueNext(@RequestParam Long scheduleId) {
-        return appointmentService.call(scheduleId);
-    }
-    @ApiOperation("过号")
-    @GetMapping("queue/remove")
-    public Result<?> queueNext(@RequestParam Long appointmentId,
-                               @RequestParam Long doctorId,
-                               @RequestParam Long departmentId,
-                               @RequestParam Long scheduleId) {
-        return appointmentService.queueNext(appointmentId,departmentId,scheduleId);
+
+    @ApiOperation("获取候诊队列")
+    @PostMapping("queue/get")
+    public Result<?> getQueue(Long appointmentId){
+        return appointmentService.getQueue(appointmentId);
     }
 
-    @ApiOperation("更新预约状态/叫号")
-    @PutMapping("update")
-    public Result<?> update(Long appointmentId,String status){
-        appointmentService.update(appointmentId,status);
+    @ApiOperation("叫号")
+    @GetMapping("queue/call")
+    public Result<?> call(@RequestParam Long scheduleId) {
+        return appointmentService.call(scheduleId);
+    }
+
+    @ApiOperation("过号")
+    @GetMapping("queue/remove")
+    public Result<?> queueNext(@RequestParam Long scheduleId,
+                               @RequestParam Long appointmentId,
+                               @RequestParam String queueNo,
+                               @RequestParam int type
+    ) {
+        return appointmentService.removeQueue(scheduleId,appointmentId, queueNo,type);
+    }
+
+    @ApiOperation("就诊中")
+    @PutMapping("queue/update")
+    public Result<?> update(Long appointmentId,int status){
+        appointmentService.updateQueue(appointmentId,status);
         return Result.success();
     }
 
