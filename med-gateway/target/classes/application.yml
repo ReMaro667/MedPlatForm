@@ -7,7 +7,7 @@ spring:
         - id: user
           uri: lb://med-user
           predicates:
-            - Path=/users/**
+            - Path=/users/**,/doctors/**
         - id: appointment
           uri: lb://med-appointment
           predicates:
@@ -33,6 +33,18 @@ hm:
   auth:
     excludePaths:
       - /users/login
+      - /doctors/register
+      - /doctors/login
       - /users/register
       - /department
       - /schedule/**
+    rolePaths:
+      admin:
+        - /**
+      doctor:
+        - /**
+      user:
+        - /appointment/u/**
+        - /pay/**
+        - /users/**
+

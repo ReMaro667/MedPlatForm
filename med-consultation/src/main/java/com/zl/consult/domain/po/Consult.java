@@ -16,4 +16,14 @@ public class Consult {
     private Long doctorId;
     private String description;
     private String advice;
+
+    public Consult(OrderDTO orderDTO){
+        this.patientId = orderDTO.getPatientId();
+        this.appointmentId = orderDTO.getAppointmentId();
+        this.doctorId = orderDTO.getDoctorId();
+        this.description = orderDTO.getDescription();
+        this.advice = orderDTO.getAdvice();
+        this.total = orderDTO.getTotal();
+    }
+    public Consult(){}
 }

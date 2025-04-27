@@ -61,28 +61,42 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     @Override
     public UserLoginVO login(LoginFormDTO loginDTO) {
-        // 1.数据校验
-        String phone = loginDTO.getPhone();
-        String password = loginDTO.getPassword();
-        // 2.根据用户名或手机号查询
-        User user = lambdaQuery().eq(User::getPhone,phone ).one();
-        Assert.notNull(user, "用户不存在");
-        //缓存用户信息
-        stringRedisTemplate.opsForValue().set("user:"+user.getUserId(),
-                user.toString(),
-                10,TimeUnit.MINUTES);
+        // 1. 参数校验略...
 
-        // 4.校验密码
-        if (!passwordEncoder.matches(password, user.getPassword())) {
+        // 2. 根据手机号查用户
+        User user = lambdaQuery()
+                .eq(User::getPhone, loginDTO.getPhone())
+                .one();
+        Assert.notNull(user, "用户不存在");
+
+        // 3. 校验密码
+        if (!passwordEncoder.matches(loginDTO.getPassword(), user.getPassword())) {
             throw new BadRequestException("用户名或密码错误");
         }
-        // 5.生成TOKEN
-        String token = jwtTool.createToken(user.getUserId(), jwtProperties.getTokenTTL());
-        // 6.封装VO返回
+
+        // 4. 从 user 里拿到角色
+        String role = "user"; // 假设你的 User 实体里有 getRole()
+
+        // 5. 生成带 role 的 token
+        String token = jwtTool.createToken(
+                user.getUserId(),
+                role,
+                jwtProperties.getTokenTTL()
+        );
+
+        // 6. 缓存用户信息（可选，可以缓存 role）
+        stringRedisTemplate.opsForValue().set(
+                "userInfo:" + user.getUserId(),
+                user.toString(),
+                30, TimeUnit.MINUTES
+        );
+
+        // 7. 封装返回 VO
         UserLoginVO vo = new UserLoginVO();
         vo.setUserId(user.getUserId());
         vo.setPhone(user.getPhone());
         vo.setUsername(user.getUsername());
+        vo.setRole(role);      // ← 设置角色
         vo.setToken(token);
         return vo;
     }

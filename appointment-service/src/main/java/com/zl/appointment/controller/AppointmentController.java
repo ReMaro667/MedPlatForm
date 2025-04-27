@@ -19,13 +19,13 @@ public class AppointmentController {
     private final IAppointmentService appointmentService;
 
     @ApiOperation("ai导诊")
-    @GetMapping("advice")
+    @GetMapping("u/advice")
     public Result<?> advice(String symptom){
         return Result.success(appointmentService.advice(symptom));
     }
 
     @ApiOperation("预约")
-    @PostMapping("create")
+    @PostMapping("u/create")
     public Result<?> create(@RequestBody @Validated CreateAppointmentDTO createAppointmentDTO){
         System.out.println("createAppointmentDTO:"+createAppointmentDTO);
         return appointmentService.create(createAppointmentDTO);

@@ -25,16 +25,9 @@ public class ConsultServiceImpl extends ServiceImpl<ConsultMapper, Consult> impl
     @Override
     public Result<?> create(OrderDTO orderDTO) {
         long id = redisIDWorker.nextId("consult:");
-        System.out.println("consult:"+orderDTO);
         orderDTO.setConsultationId(id);
-        Consult consult = new Consult();
+        Consult consult = new Consult(orderDTO);
         consult.setConsultationId(id);
-        consult.setPatientId(orderDTO.getPatientId());
-        consult.setAppointmentId(orderDTO.getAppointmentId());
-        consult.setDoctorId(orderDTO.getDoctorId());
-        consult.setDescription(orderDTO.getDescription());
-        consult.setAdvice(orderDTO.getAdvice());
-
         //保存Prescription
         double total=0;
         for (Prescription prescription : orderDTO.getPrescriptions()) {
@@ -48,7 +41,6 @@ public class ConsultServiceImpl extends ServiceImpl<ConsultMapper, Consult> impl
                 //可优化
                 prescriptionServiceClient.reduce(prescription.getDrugId(), prescription.getQuantity());
                 prescriptionServiceClient.save(prescription);
-
                 //发送通知药房采药
             }catch (Exception e){
                 throw new RuntimeException("服务异常");

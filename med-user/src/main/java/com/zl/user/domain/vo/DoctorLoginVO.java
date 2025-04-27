@@ -3,7 +3,7 @@ package com.zl.user.domain.vo;
 import lombok.Data;
 
 @Data
-public class UserLoginVO {
+public class DoctorLoginVO {
     private String token;
     private String username;
     private Long userId;

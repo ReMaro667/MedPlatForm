@@ -24,9 +24,7 @@ public class CreateAppointmentDTO {
 
     private Long patientId; // 患者ID（关联user-service）
 
-    @NotNull
     private AppointmentStatus status; // 预约状态枚举
-
     @NotNull
     String date;
 }

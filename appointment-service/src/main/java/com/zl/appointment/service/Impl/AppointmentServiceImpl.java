@@ -1,5 +1,6 @@
 package com.zl.appointment.service.Impl;
 import com.alibaba.fastjson.JSON;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.zl.api.client.GetInfo;
 import com.zl.api.domain.po.User;
@@ -47,16 +48,18 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
     private final RabbitTemplate rabbitTemplate;
     @Resource
     private RedissonClient redissonClient;
-    @Autowired
-    private StringRedisTemplate stringRedisTemplate;
 
     @Override
     @Transactional
     public Result<?> create(CreateAppointmentDTO createAppointmentDTO) {
         //检测重复预约
         Long userId = UserContext.getUser();
-        if (redisTemplate.opsForHash().get("appointmentUsers:",userId.toString())!=null){
-            return Result.fail(400,"重复预约,当天已预约");
+        if (appointmentMapper.exists(
+                new QueryWrapper<Appointment>()
+                        .eq("patient_id",userId)
+                        .eq("schedule_id",createAppointmentDTO.getScheduleId())
+        )){
+            return Result.fail(400,"重复预约");
         }
         Long scheduleId = createAppointmentDTO.getScheduleId();
         LocalDate date = LocalDate.parse(createAppointmentDTO.getDate());
@@ -79,21 +82,7 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
 
             System.out.println("------schedule:"+schedule);
             int maxPatients = schedule.getMaxPatients();
-                //新建缓存
-            if (!redisTemplate.opsForHash().putIfAbsent("appointmentUsers:",userId.toString(),"1")){
-                return Result.fail(400,"重复预约,当天已预约");
-            }
-            else {
-                //设置晚上12点过期
-                LocalDateTime now = LocalDateTime.now();
-                LocalDateTime midnight = now.toLocalDate().atStartOfDay().plusDays(1); // 当日晚上12点
-                long secondsUntilMidnight = ChronoUnit.SECONDS.between(now, midnight); // 计算时间差
-                redisTemplate.expire(
-                        "appointmentUser:" + userId,
-                        secondsUntilMidnight,
-                        TimeUnit.SECONDS
-                );
-            }
+
             //更新redis库存
             schedule.setMaxPatients(maxPatients-1);
             String scheduleJson = JSON.toJSONString(schedule);

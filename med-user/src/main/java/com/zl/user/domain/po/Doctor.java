@@ -18,7 +18,9 @@ public class Doctor {
     private Long doctorId;
     private Long departmentId;
     private String name;
+    private String password;
     private String title;
+    protected String phone;
     private String introduction;
     private String specialty;
     private String licenseNumber;

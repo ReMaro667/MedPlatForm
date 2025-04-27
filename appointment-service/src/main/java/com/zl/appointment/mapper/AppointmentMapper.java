@@ -16,8 +16,8 @@ public interface AppointmentMapper extends BaseMapper<Appointment> {
     /**
      * 新建预约
      */
-    @Insert("insert into appointment (schedule_id, patient_id, status) " +
-            "values (#{scheduleId}, #{patientId}, #{status})")
+    @Insert("insert into appointment (schedule_id, patient_id) " +
+            "values (#{scheduleId}, #{patientId})")
     void createAppointment(CreateAppointmentDTO createAppointmentDTO);
 
     /**
